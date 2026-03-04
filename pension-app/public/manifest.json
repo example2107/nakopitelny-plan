@@ -1,0 +1,18 @@
+{
+  "name": "Пенсионный калькулятор",
+  "short_name": "Пенсия",
+  "description": "Накопительный пенсионный план",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0c0b14",
+  "theme_color": "#0c0b14",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
