@@ -209,9 +209,12 @@ function NominalTooltip({ nominalValue, realValue, baseYear, children, onTapEdit
     if (!trigRef.current) return;
     const rect = trigRef.current.getBoundingClientRect();
     const W = 200, H = 40;
+    // On mobile, tab bar is ~110px tall — keep tooltip below it
+    const minTop = window.innerWidth <= MOBILE_BP ? 118 : 8;
     let top  = rect.top - H - 10;
     let left = rect.left + rect.width/2 - W/2;
-    if (top < 8) top = rect.bottom + 8;
+    if (top < minTop) top = rect.bottom + 8;
+    if (top < minTop) top = minTop;
     if (left < 8) left = 8;
     if (left + W > window.innerWidth - 8) left = window.innerWidth - W - 8;
     setPos({ top, left });
@@ -253,17 +256,21 @@ function NominalTooltip({ nominalValue, realValue, baseYear, children, onTapEdit
     e.stopPropagation();
 
     if (show) {
-      // второй тап — закрыть и перейти к редактированию
+      // второй тап — закрыть (и перейти к редактированию если есть)
       clearTimeout(hideTimer.current);
       setShow(false);
+      _tooltipCloseAll = null;
+      window.removeEventListener("scroll", myClose.current, true);
       if (onTapEdit) onTapEdit();
     } else {
       // первый тап — закрыть все остальные, показать этот
       if (_tooltipCloseAll) _tooltipCloseAll();
-      _tooltipCloseAll = () => { clearTimeout(hideTimer.current); setShow(false); };
+      const closeThis = () => { clearTimeout(hideTimer.current); setShow(false); _tooltipCloseAll = null; window.removeEventListener("scroll", closeThis, true); };
+      _tooltipCloseAll = closeThis;
       calcPos();
       setShow(true);
-      hideTimer.current = setTimeout(() => { setShow(false); _tooltipCloseAll = null; }, 2500);
+      hideTimer.current = setTimeout(closeThis, 2500);
+      window.addEventListener("scroll", closeThis, true);
     }
   };
 
@@ -842,10 +849,17 @@ export default function App() {
   const firstContribReal = rows[0]?.contribReal   || 0;
 
   return (
-    <div id="app-root" style={{ minHeight:"100vh", background:"#0c0b14", color:"#ddd4c0", fontFamily:"Georgia,serif" }}>
+    <div id="app-root" style={{ minHeight:"100vh", background:"#0c0b14", color:"#ddd4c0", fontFamily:"Georgia,serif" }}
+      onTouchStart={e => { const t = e.touches[0]; e.currentTarget._tsx = t.clientX; e.currentTarget._tsy = t.clientY; }}
+      onTouchMove={e => {
+        const dx = Math.abs(e.touches[0].clientX - (e.currentTarget._tsx||0));
+        const dy = Math.abs(e.touches[0].clientY - (e.currentTarget._tsy||0));
+        if (dx > dy && dx > 10) e.preventDefault();
+      }}
+    >
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&display=swap');
-        *{box-sizing:border-box;}
+        *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
         html,body{overscroll-behavior:contain;overscroll-behavior-y:contain;}
         ::-webkit-scrollbar{width:4px;}
         ::-webkit-scrollbar-track{background:#14131e;}
@@ -1056,8 +1070,8 @@ export default function App() {
                       const rowBg     = isHovered?"rgba(255,255,255,0.045)":milestone?"rgba(201,169,110,0.025)":"transparent";
                       return (
                         <tr key={row.year}
-                          onMouseEnter={()=>setHoveredRow(row.year)}
-                          onMouseLeave={()=>setHoveredRow(null)}
+                          onMouseEnter={()=>{ if(window.innerWidth > MOBILE_BP) setHoveredRow(row.year); }}
+                          onMouseLeave={()=>{ if(window.innerWidth > MOBILE_BP) setHoveredRow(null); }}
                           style={{ borderBottom:"1px solid #141222" }}>
                           <td style={{ padding:"8px 14px", fontFamily:"monospace", fontSize:11, color:"#6866a0", background:rowBg }}>{row.year}</td>
                           <td className="col-age" style={{ padding:"8px 14px", fontFamily:"'Playfair Display',serif", fontSize:15, color:milestone?"#c9a96e":"#5a5870", fontWeight:milestone?700:400, background:rowBg }}>{row.age}</td>
